@@ -27,7 +27,7 @@ btnGrayscale.addEventListener('click', () => {
     imgData = canvasContext.getImageData(0, 0, myCanvas.width, myCanvas.height);
     console.log(imgData);
     for(let i=0;i<imgData.data.length;i+=4){
-        grayscaleValue = (imgData.data[i] + imgData.data[i+1] + imgData.data[i+2])/3;
+        grayscaleValue = Math.trunc((imgData.data[i] + imgData.data[i+1] + imgData.data[i+2])/3);
         imgData.data[i] = grayscaleValue;
         imgData.data[i+1] = grayscaleValue;
         imgData.data[i+2] = grayscaleValue;
@@ -38,14 +38,15 @@ btnGrayscale.addEventListener('click', () => {
 })
 
 btnHistogramEquilizer.addEventListener('click', () =>{
-    let finalData = [];
     let hisPixel;
     let indx=0
     pixels.forEach(sPixel => {
-        if(doesPixelIntensityExists(sPixel.intensity) == false){
-            historicalpixels.push(new HistoricalPixel(sPixel.intensity,getCumilative(sPixel.intensity)));
+        if(doesPixelIntensityExists(sPixel.intensity) === false){
+            historicalpixels.push(new HistoricalPixel(sPixel.intensity,getCount(sPixel.intensity)));
         }
     });
+
+    getCumilatives();
     let minCDF = Math.min.apply(Math, historicalpixels.map(function (o) {
         return o.cumilative;
     }));
@@ -53,7 +54,7 @@ btnHistogramEquilizer.addEventListener('click', () =>{
         hPixel.applyhistoricalEquilization(minCDF);
     });
     pixels.forEach(sp => {
-        hisPixel = getHistoricalPixel(sp);
+        hisPixel = getHistoricalPixel(sp.intensity);
         imgData.data[indx++] = hisPixel.historicalScale;
         imgData.data[indx++] = hisPixel.historicalScale;
         imgData.data[indx++] = hisPixel.historicalScale;
@@ -70,14 +71,15 @@ class PixelOfImage{
 }
 
 class HistoricalPixel{
-    constructor(intensity, cumilative){
+    constructor(intensity, count){
         this.intensity = intensity;
-        this.cumilative = cumilative;
+        this.count = count;
+        this.cumilative = null;
         this.historicalScale = null;
     }
 
     applyhistoricalEquilization(minCumilative){
-        this.historicalScale =  Math.round(((this.cumilative - minCumilative) * (historicalpixels.length-1))/(pixels.length-minCumilative));
+        this.historicalScale =  Math.round(((this.cumilative - minCumilative) * 255)/(pixels.length-minCumilative));
         console.log(this.intensity, this.cumilative, this.historicalScale);
     }
 }
@@ -91,15 +93,25 @@ function doesPixelIntensityExists(intensity){
     })
 }
 
-function getCumilative(intensity){
+function getCount(intensity){
     var filteredPixels = pixels.filter((sPixel) =>{
-        return sPixel.intensity == intensity;
+        return sPixel.intensity === intensity;
     })
     return filteredPixels.length;
 }
 
-function getHistoricalPixel(pixel){
+function getHistoricalPixel(intensity){
     return historicalpixels.filter((hPixel)=>{
-        return hPixel.intensity == pixel.intensity;
+        return hPixel.intensity == intensity;
     })[0];
+}
+
+function getCumilatives(){
+    historicalpixels = historicalpixels.sort(function(a, b){return a.intensity - b.intensity;});
+    let k=0;
+    let histOfIntensity;
+    historicalpixels.forEach(hPix => {
+        k += hPix.count;
+        hPix.cumilative = k;
+    });
 }
